@@ -10,6 +10,4 @@ PyMuPDF
 pytesseract
 Pillow
 opencv-python-headless
-openai-whisper
-sentence-transformers
-torch==2.5.1
+groq
