@@ -13,7 +13,6 @@ from services.image_service import extract_text_from_image
 from services.groq_service import ask_llm
 from services.pinecone_service import save_to_pinecone, clean_id
 from services.neo4j_service import save_to_neo4j
-from services.whisper_service import audio_model
 from models.request_models import AnalysisRequest
 
 router = APIRouter()
@@ -315,60 +314,29 @@ async def analyze_file(
 
 @router.post("/analyze-audio")
 async def analyze_audio(file: UploadFile = File(...)):
-    if not audio_model:
-        raise HTTPException(status_code=500, detail="Whisper not ready")
-
-    uid = str(uuid.uuid4())
-
-    temp_audio = f"temp_{uid}_{file.filename}"
-    temp_wav = f"conv_{uid}.wav"
-
+    temp_audio = f"temp_{uuid.uuid4()}_{file.filename}"
     try:
         content = await file.read()
-
         with open(temp_audio, "wb") as f:
             f.write(content)
-
-        subprocess.run([
-            FFMPEG_EXE_PATH,
-            "-y",
-            "-i", temp_audio,
-            "-vn",
-            "-ac", "1",
-            "-ar", "16000",
-            temp_wav
-        ])
-
-        result = audio_model.transcribe(
-            temp_wav,
-            language="ar"
-        )
-
-        transcript = result["text"].strip()
-
+        
+        from services.whisper_service import transcribe_audio
+        transcript = transcribe_audio(temp_audio)
+        
         if not transcript:
-            return utf8_response({
-                "analysis": "الصوت غير واضح"
-            })
-
-        analysis = ask_llm("حلل هذا النص الطبي:\n" + transcript)
-
+            return utf8_response({"analysis": "الصوت غير واضح"})
+        
+        analysis = ask_llm(medical_text_prompt(transcript))
+        
         return utf8_response({
             "transcript": transcript,
             "analysis": analysis
         })
-
     except Exception as e:
-        return utf8_response({
-            "error": str(e)
-        }, 500)
-
+        return utf8_response({"error": str(e)}, 500)
     finally:
-        for f in [temp_audio, temp_wav]:
-            if os.path.exists(f):
-                os.remove(f)
-
-
+        if os.path.exists(temp_audio):
+            os.remove(temp_audio)
 # ==================================================
 # URL
 # ==================================================
