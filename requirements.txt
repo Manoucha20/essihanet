@@ -8,3 +8,4 @@ pinecone
 PyMuPDF
 pytesseract
 Pillow
+opencv-python-headless
