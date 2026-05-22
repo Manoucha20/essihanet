@@ -3,6 +3,7 @@ uvicorn
 neo4j
 langchain
 langchain-core
+langchain-groq
 python-dotenv
 pinecone
 PyMuPDF
